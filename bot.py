@@ -7,7 +7,10 @@ from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandle
 
 async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
+    try:
+        await query.answer("ثبت شد! ❤️")
+    except Exception:
+        pass
     
     data = query.data
     if data.startswith("like_"):
@@ -20,12 +23,14 @@ async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 for button in row:
                     if button.callback_data == data:
                         text = button.text
+                        base_text = text.split("(")[0].strip()
+                        count = 1
                         if "(" in text:
-                            base_text, count_str = text.split("(")
-                            count = int(count_str.replace(")", "")) + 1
-                            new_text = f"{base_text.strip()} ({count})"
-                        else:
-                            new_text = f"{text} (1)"
+                            try:
+                                count = int(text.split("(")[1].replace(")", "").strip()) + 1
+                            except:
+                                count = 1
+                        new_text = f"{base_text} ({count})"
                         new_row.append(InlineKeyboardButton(new_text, callback_data=button.callback_data))
                     else:
                         new_row.append(button)
@@ -33,7 +38,7 @@ async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 
             await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
         except Exception as e:
-            print(f"Error updating like button: {e}")
+            print(f"Like error: {e}")
 
 # تابع پردازش صوت با ffmpeg
 def process_audio_clip(input_path, wav_path, ogg_path):
