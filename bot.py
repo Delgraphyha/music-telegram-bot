@@ -180,6 +180,9 @@ async def button_channel_handler(update: Update, context: ContextTypes.DEFAULT_T
         )
         
     await query.edit_message_text(f"✅ پست با موفقیت به کانال {chan_name} ارسال شد!")
+
+
+
 def main():
     # خواندن توکن از متغیر محیطی سرور
     TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -194,9 +197,29 @@ def main():
     app.add_handler(MessageHandler(filters.AUDIO | filters.Document.AUDIO, handle_audio))
     app.add_handler(CallbackQueryHandler(button_channel_handler, pattern="^chan_"))
     app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
-    
+    # --- کدهای وب‌سرور برای راضی کردن رندر ---
+    import os
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    import threading
+
+    class SimpleHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"Bot is running!")
+
+    def run_web_server():
+        port = int(os.environ.get("PORT", 10000))
+        server = HTTPServer(("0.0.0.0", port), SimpleHandler)
+        server.serve_forever()
+
+    # روشن کردن سرور در پس‌زمینه
+    threading.Thread(target=run_web_server, daemon=True).start()
+    # ----------------------------------------
+
     print("🤖 ربات با موفقیت روشن شد و آماده به کار است...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
