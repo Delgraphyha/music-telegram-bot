@@ -1,6 +1,5 @@
 import os
 import subprocess
-import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -11,48 +10,42 @@ async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
     
     data = query.data
-    # بررسی اینکه کدام دکمه لایک کلیک شده است
     if data.startswith("like_"):
-        # خواندن تعداد لایک‌های قبلی از متن دکمه یا ذخیره در context
-        keyboard = query.message.reply_markup.inline_keyboard
-        new_keyboard = []
-        
-        for row in keyboard:
-            new_row = []
-            for button in row:
-                if button.callback_data == data:
-                    # استخراج تعداد لایک فعلی و اضافه کردن یک واحد به آن
-                    text = button.text
-                    if "(" in text:
-                        base_text, count_str = text.split("(")
-                        count = int(count_str.replace(")", "")) + 1
-                        new_text = f"{base_text.strip()} ({count})"
-                    else:
-                        new_text = f"{text} (1)"
-                    new_row.append(InlineKeyboardButton(new_text, callback_data=button.callback_data))
-                else:
-                    new_row.append(button)
-            new_keyboard.append(new_row)
-            
         try:
+            keyboard = query.message.reply_markup.inline_keyboard
+            new_keyboard = []
+            
+            for row in keyboard:
+                new_row = []
+                for button in row:
+                    if button.callback_data == data:
+                        text = button.text
+                        if "(" in text:
+                            base_text, count_str = text.split("(")
+                            count = int(count_str.replace(")", "")) + 1
+                            new_text = f"{base_text.strip()} ({count})"
+                        else:
+                            new_text = f"{text} (1)"
+                        new_row.append(InlineKeyboardButton(new_text, callback_data=button.callback_data))
+                    else:
+                        new_row.append(button)
+                new_keyboard.append(new_row)
+                
             await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
-        except Exception:
-            pass
-        
+        except Exception as e:
+            print(f"Error updating like button: {e}")
+
 # تابع پردازش صوت با ffmpeg
 def process_audio_clip(input_path, wav_path, ogg_path):
     clip_duration = "25"
     
-    # بریدن مستقیم از ثانیه ۳۰ به بعد
     cut_cmd = ["ffmpeg", "-y", "-ss", "30", "-i", input_path, "-t", clip_duration, "-c:a", "libmp3lame", wav_path]
     res = subprocess.run(cut_cmd, capture_output=True)
     
-    # اگر آهنگ کوتاه بود و ثانیه ۳۰ نداشت، از ثانیه صفر ببر
     if res.returncode != 0 or not os.path.exists(wav_path) or os.path.getsize(wav_path) == 0:
         cut_cmd = ["ffmpeg", "-y", "-ss", "0", "-i", input_path, "-t", clip_duration, "-c:a", "libmp3lame", wav_path]
         subprocess.run(cut_cmd, capture_output=True)
 
-    # تبدیل به فرمت OGG برای ویس تلگرام
     ogg_cmd = ["ffmpeg", "-y", "-i", wav_path, "-c:a", "libopus", "-b:a", "64k", ogg_path]
     subprocess.run(ogg_cmd, capture_output=True)
 
@@ -92,12 +85,10 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     process_audio_clip(input_path, wav_path, voice_path)
     
-    # ذخیره مسیرها در حافظه موقت
     context.user_data['input_path'] = input_path
     context.user_data['voice_path'] = voice_path
     context.user_data['title'] = title
     
-    # دکمه‌های شیشه‌ای با نام کانال‌های خودت
     keyboard = [
         [
             InlineKeyboardButton("📢 دلگرافی‌ها", callback_data="chan_1"),
@@ -134,7 +125,6 @@ async def button_channel_handler(update: Update, context: ContextTypes.DEFAULT_T
     custom_thumb = "downloads/user_custom_thumb.jpg"
     final_thumb_path = custom_thumb if os.path.exists(custom_thumb) else None
 
-    # دکمه‌های زیر پست
     keyboard = [
         [
             InlineKeyboardButton("👍 لایک", callback_data="like_btn"),
@@ -147,11 +137,9 @@ async def button_channel_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     await query.edit_message_text(f"⏳ در حال ارسال پست به کانال {chan_name}...")
 
-    # ارسال عکس کاور (اگر موجود باشد)
     if final_thumb_path:
         await context.bot.send_photo(chat_id=channel_id, photo=open(final_thumb_path, 'rb'))
 
-    # ارسال فایل صوتی اصلی با کپشن کامل
     with open(input_path, 'rb') as audio:
         await context.bot.send_audio(
             chat_id=channel_id,
@@ -166,7 +154,6 @@ async def button_channel_handler(update: Update, context: ContextTypes.DEFAULT_T
             reply_markup=reply_markup
         )
 
-    # ارسال ویس ۲۵ ثانیه‌ای گلچین‌شده با کپشن کامل
     with open(voice_path, 'rb') as voice:
         await context.bot.send_voice(
             chat_id=channel_id,
@@ -184,10 +171,7 @@ async def button_channel_handler(update: Update, context: ContextTypes.DEFAULT_T
         
     await query.edit_message_text(f"✅ پست با موفقیت به کانال {chan_name} ارسال شد!")
 
-
-
 def main():
-    # خواندن توکن از متغیر محیطی سرور
     TOKEN = os.getenv("TELEGRAM_TOKEN")
     
     if not TOKEN:
@@ -200,9 +184,8 @@ def main():
     app.add_handler(MessageHandler(filters.AUDIO | filters.Document.AUDIO, handle_audio))
     app.add_handler(CallbackQueryHandler(button_channel_handler, pattern="^chan_"))
     app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
+
     # --- کدهای وب‌سرور برای راضی کردن رندر ---
-
-
     class SimpleHandler(BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
@@ -214,13 +197,11 @@ def main():
         server = HTTPServer(("0.0.0.0", port), SimpleHandler)
         server.serve_forever()
 
-    # روشن کردن سرور در پس‌زمینه
     threading.Thread(target=run_web_server, daemon=True).start()
     # ----------------------------------------
 
     print("🤖 ربات با موفقیت روشن شد و آماده به کار است...")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
