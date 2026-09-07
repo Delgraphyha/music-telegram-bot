@@ -1,5 +1,8 @@
 import os
 import subprocess
+    import os
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    import threading
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
@@ -198,9 +201,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_channel_handler, pattern="^chan_"))
     app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
     # --- کدهای وب‌سرور برای راضی کردن رندر ---
-    import os
-    from http.server import HTTPServer, BaseHTTPRequestHandler
-    import threading
+
 
     class SimpleHandler(BaseHTTPRequestHandler):
         def do_GET(self):
