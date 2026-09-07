@@ -181,8 +181,12 @@ async def button_channel_handler(update: Update, context: ContextTypes.DEFAULT_T
         
     await query.edit_message_text(f"✅ پست با موفقیت به کانال {chan_name} ارسال شد!")
 def main():
-    TOKEN = "8962007345:AAEXrg15fqLc6T1KFxSm7vkQR220BJWIdpc"  # توکن رباتت رو اینجا بذار
+    # خواندن توکن از متغیر محیطی سرور
+    TOKEN = os.getenv("TELEGRAM_TOKEN")
     
+    if not TOKEN:
+        print("❌ خطا: توکن ربات پیدا نشد!")
+        return
     
     app = ApplicationBuilder().token(TOKEN).build()
     
