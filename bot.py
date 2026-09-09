@@ -283,10 +283,15 @@ def main():
     global_app = ApplicationBuilder().token(TOKEN).build()
     
     # ثبت لوپ اصلی برنامه‌
+    # ایجاد یا گرفتن امن لوپ اصلی
     try:
-        main_loop = asyncio.get_running_loop()
-    except RuntimeError:
         main_loop = asyncio.get_event_loop()
+        if main_loop.is_closed():
+            main_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(main_loop)
+    except RuntimeError:
+        main_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(main_loop)
     
     global_app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     global_app.add_handler(MessageHandler(filters.AUDIO | filters.Document.ALL | (filters.TEXT & ~filters.COMMAND), handle_audio))
