@@ -154,7 +154,6 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ پردازش انجام شد. زمان انتشار پست را انتخاب کن:", reply_markup=reply_markup)
 
 async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_path, title, user_data):
-    print("🚀 تابع ارسال پست به کانال فراخوانی شد!")
     custom_thumb = user_data.get('custom_thumb_path')
     final_thumb_path = None
 
@@ -214,7 +213,6 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
         print(f"❌ خطا در ارسال پست: {e}")
 
 def scheduled_job_wrapper(channel_id, chan_name, input_path, voice_path, title, user_data):
-    print("⏰ زمان‌بندی فعال شد و جاب در حال اجراست...")
     global global_app
     if global_app:
         import asyncio
@@ -302,7 +300,7 @@ def main():
     threading.Thread(target=run_web_server, daemon=True).start()
 
     print("🤖 ربات با موفقیت روشن شد و آماده به کار است...")
-    global_app.run_polling()
+    global_app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
