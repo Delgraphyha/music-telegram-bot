@@ -286,12 +286,14 @@ def main():
     port = int(os.environ.get("PORT", 10000))
 
     if RENDER_EXTERNAL_URL:
-        webhook_url = f"{RENDER_EXTERNAL_URL.rstrip('/')}/{TOKEN}"
+        base_url = RENDER_EXTERNAL_URL.rstrip('/')
+        webhook_url = f"{base_url}/{TOKEN}"
         print(f"🌐 در حال راه‌اندازی Webhook روی آدرس: {webhook_url}")
+        
         global_app.run_webhook(
             listen="0.0.0.0",
             port=port,
-            secret_token="my_secure_secret_token",
+            url_path=TOKEN,
             webhook_url=webhook_url
         )
     else:
