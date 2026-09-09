@@ -4,6 +4,10 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+from apscheduler.schedulers.background import BackgroundScheduler
+
+scheduler = BackgroundScheduler()
+scheduler.start()
 
 async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -54,21 +58,27 @@ def process_audio_clip(input_path, wav_path, ogg_path):
     ogg_cmd = ["ffmpeg", "-y", "-i", wav_path, "-c:a", "libopus", "-b:a", "64k", ogg_path]
     subprocess.run(ogg_cmd, capture_output=True)
 
-# دریافت عکس کاور اختصاصی
+# دریافت عکس کاور اختصاصی مجزا
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     os.makedirs("downloads", exist_ok=True)
+    user_id = update.effective_user.id
     photo_file = await update.message.photo[-1].get_file()
-    await photo_file.download_to_drive("downloads/user_custom_thumb.jpg")
+    custom_thumb_path = os.path.join("downloads", f"custom_thumb_{user_id}.jpg")
+    await photo_file.download_to_drive(custom_thumb_path)
+    
+    context.user_data['custom_thumb_path'] = custom_thumb_path
+    print(f"📸 عکس کاور برای کاربر {user_id} ذخیره شد.")
     await update.message.reply_text("✅ عکس کاور اختصاصی با موفقیت ذخیره شد! حالا موزیک را بفرستید.")
 
-# دریافت موزیک و نمایش دکمه‌های انتخاب کانال
+# دریافت موزیک
 async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ در حال پردازش هوشمند موزیک...")
     
     os.makedirs("downloads", exist_ok=True)
-    input_path = os.path.join("downloads", "downloaded_song.mp3")
-    wav_path = os.path.join("downloads", "temp.wav")
-    voice_path = os.path.join("downloads", "best_voice.ogg")
+    user_id = update.effective_user.id
+    input_path = os.path.join("downloads", f"song_{user_id}.mp3")
+    wav_path = os.path.join("downloads", f"temp_{user_id}.wav")
+    voice_path = os.path.join("downloads", f"voice_{user_id}.ogg")
     
     if update.message.audio:
         audio_msg = update.message.audio
@@ -93,10 +103,11 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['input_path'] = input_path
     context.user_data['voice_path'] = voice_path
     context.user_data['title'] = title
+    context.user_data['user_id'] = user_id
     
     keyboard = [
         [
-            InlineKeyboardButton("📢 دلگرافی‌ها", callback_data="chan_1"),
+            InlineKeyboardButton("📢 دلگرافی‌ها (تست)", callback_data="chan_1"),
             InlineKeyboardButton("📢 آهنگ زیبا موزیک", callback_data="chan_2")
         ]
     ]
@@ -104,31 +115,16 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text("✅ پردازش انجام شد. حالا انتخاب کن این پست به کدام کانال ارسال شود:", reply_markup=reply_markup)
 
-# مدیریت کلیک روی دکمه کانال‌ها و ارسال پست
-async def button_channel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    input_path = context.user_data.get('input_path')
-    voice_path = context.user_data.get('voice_path')
-    
-    if not input_path or not os.path.exists(input_path):
-        await query.edit_message_text("❌ اطلاعات فایل منقضی شده است. لطفاً دوباره موزیک را ارسال کنید.")
-        return
+# ارسال پست به کانال با مدیریت هوشمند عکس
+async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_path, title, user_data):
+    custom_thumb = user_data.get('custom_thumb_path')
+    final_thumb_path = None
 
-    data = query.data
-    if data == "chan_1":
-        channel_id = "@Delgraphyha"
-        chan_name = "دلگرافی‌ها"
-    elif data == "chan_2":
-        channel_id = "@ahangzibamusic"
-        chan_name = "آهنگ زیبا موزیک"
+    if custom_thumb and os.path.exists(custom_thumb):
+        final_thumb_path = custom_thumb
+        print(f"📸 عکس کاور پیدا شد و روی پست قرار می‌گیرد: {final_thumb_path}")
     else:
-        return
-
-    title = context.user_data.get('title', 'Music')
-    custom_thumb = "downloads/user_custom_thumb.jpg"
-    final_thumb_path = custom_thumb if os.path.exists(custom_thumb) else None
+        print("⚠️ هیچ عکس کاوری برای این پست پیدا نشد.")
 
     keyboard = [
         [
@@ -140,44 +136,133 @@ async def button_channel_handler(update: Update, context: ContextTypes.DEFAULT_T
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text(f"⏳ در حال ارسال پست به کانال {chan_name}...")
+    try:
+        if final_thumb_path and os.path.exists(final_thumb_path):
+            with open(final_thumb_path, 'rb') as photo:
+                await bot.send_photo(chat_id=channel_id, photo=photo)
+            try:
+                os.remove(final_thumb_path)
+                user_data.pop('custom_thumb_path', None)
+            except:
+                pass
 
-    if final_thumb_path:
-        await context.bot.send_photo(chat_id=channel_id, photo=open(final_thumb_path, 'rb'))
+        with open(input_path, 'rb') as audio:
+            await bot.send_audio(
+                chat_id=channel_id,
+                audio=audio,
+                title=title,
+                caption=(
+                    "🎵 **نسخه کامل موزیک**\n\n"
+                    "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
+                    "🎬 تیک‌تاک: [TikTok Profile](https://tiktok.com/@wanderovlog)"
+                ),
+                parse_mode="Markdown",
+                reply_markup=reply_markup
+            )
 
-    with open(input_path, 'rb') as audio:
-        await context.bot.send_audio(
-            chat_id=channel_id,
-            audio=audio,
-            title=title,
-            caption=(
-                "🎵 **نسخه کامل موزیک**\n\n"
-                "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
-                "🎬 تیک‌تاک: [TikTok Profile](https://tiktok.com/@wanderovlog)"
-            ),
-            parse_mode="Markdown",
-            reply_markup=reply_markup
-        )
+        with open(voice_path, 'rb') as voice:
+            await bot.send_voice(
+                chat_id=channel_id,
+                voice=voice,
+                caption=(
+                    "✨ بخش جذاب آهنگ\n\n"
+                    "🎵 **گلچین ۲۵ ثانیه طلایی و پرانرژی موزیک**\n\n"
+                    "✨ لذت ببرید و نظرات خود را با ما در میان بگذارید.\n\n"
+                    "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
+                    "🎬 ما را در تیک‌تاک دنبال کنید: [TikTok Profile](https://tiktok.com/@wanderovlog)"
+                ),
+                parse_mode="Markdown",
+                reply_markup=reply_markup
+            )
+        print(f"✅ پست با موفقیت به کانال {chan_name} ارسال شد.")
+    except Exception as e:
+        print(f"❌ خطا در ارسال پست: {e}")
 
-    with open(voice_path, 'rb') as voice:
-        await context.bot.send_voice(
-            chat_id=channel_id,
-            voice=voice,
-            caption=(
-                "✨ بخش جذاب آهنگ\n\n"
-                "🎵 **گلچین ۲۵ ثانیه طلایی و پرانرژی موزیک**\n\n"
-                "✨ لذت ببرید و نظرات خود را با ما در میان بگذارید.\n\n"
-                "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
-                "🎬 ما را در تیک‌تاک دنبال کنید: [TikTok Profile](https://tiktok.com/@wanderovlog)"
-            ),
-            parse_mode="Markdown",
-            reply_markup=reply_markup
+# دریافت موزیک و نمایش گزینه‌های ارسال (آنی یا زمان‌بندی)
+async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("⏳ در حال پردازش هوشمند موزیک...")
+    
+    os.makedirs("downloads", exist_ok=True)
+    user_id = update.effective_user.id
+    input_path = os.path.join("downloads", f"song_{user_id}.mp3")
+    wav_path = os.path.join("downloads", f"temp_{user_id}.wav")
+    voice_path = os.path.join("downloads", f"voice_{user_id}.ogg")
+    
+    if update.message.audio:
+        audio_msg = update.message.audio
+        audio_file = await audio_msg.get_file()
+        title = audio_msg.title or audio_msg.file_name or "موزیک"
+    elif update.message.document:
+        audio_msg = update.message.document
+        audio_file = await audio_msg.get_file()
+        title = audio_msg.file_name or "موزیک"
+    else:
+        await update.message.reply_text("❌ لطفاً یک فایل صوتی معتبر ارسال کنید.")
+        return
+
+    try:
+        await audio_file.download_to_drive(input_path, read_timeout=60, write_timeout=60, connect_timeout=60)
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در دانلود فایل: {e}")
+        return
+
+    process_audio_clip(input_path, wav_path, voice_path)
+    
+    context.user_data['input_path'] = input_path
+    context.user_data['voice_path'] = voice_path
+    context.user_data['title'] = title
+    context.user_data['user_id'] = user_id
+    
+    # منوی انتخاب نحوه ارسال (فوری یا زمان‌بندی شده)
+    keyboard = [
+        [
+            InlineKeyboardButton("🚀 ارسال آنی همین الان", callback_data="send_now"),
+            InlineKeyboardButton("⏰ زمان‌بندی (تست ۱ دقیقه‌ای)", callback_data="sched_1min")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text("✅ پردازش انجام شد. نحوه ارسال پست را انتخاب کن:", reply_markup=reply_markup)
+
+# مدیریت دکمه‌های نوع ارسال
+async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    channel_id = "@testDelgraphyha"
+    chan_name = "Test Channel"
+    
+    input_path = context.user_data.get('input_path')
+    voice_path = context.user_data.get('voice_path')
+    
+    if not input_path or not os.path.exists(input_path):
+        await query.edit_message_text("❌ اطلاعات فایل منقضی شده است. لطفاً دوباره موزیک را ارسال کنید.")
+        return
+
+    title = context.user_data.get('title', 'Music')
+
+    if data == "send_now":
+        await query.edit_message_text(f"⏳ در حال ارسال مستقیم پست به کانال {chan_name}...")
+        await send_post_to_channel(context.bot, channel_id, chan_name, input_path, voice_path, title, context.user_data)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"✅ پست با موفقیت به کانال ارسال شد!")
+
+    elif data == "sched_1min":
+        # زمان‌بندی برای 1 دقیقه بعد (جهت تست سریع)
+        run_time = datetime.now() + timedelta(minutes=1)
+        
+        scheduler.add_job(
+            send_post_to_channel,
+            'date',
+            run_date=run_time,
+            args=[context.bot, channel_id, chan_name, input_path, voice_path, title, context.user_data]
         )
         
-    await query.edit_message_text(f"✅ پست با موفقیت به کانال {chan_name} ارسال شد!")
+        await query.edit_message_text(f"⏰ پست با موفقیت برای **۱ دقیقه دیگر** ({run_time.strftime('%H:%M:%S')}) زمان‌بندی شد و سر موعد به کانال ارسال خواهد شد!")
 
 def main():
-    TOKEN = os.getenv("TELEGRAM_TOKEN")
+    # توکن خود را اینجا قرار دهید
+    TOKEN = "8962007345:AAEXrg15fqLc6T1KFxSm7vkQR220BJWIdpc"
     
     if not TOKEN:
         print("❌ خطا: توکن ربات پیدا نشد!")
@@ -187,10 +272,9 @@ def main():
     
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.AUDIO | filters.Document.AUDIO, handle_audio))
-    app.add_handler(CallbackQueryHandler(button_channel_handler, pattern="^chan_"))
+    app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(send_now|sched_)"))
     app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
 
-    # --- کدهای وب‌سرور برای راضی کردن رندر ---
     class SimpleHandler(BaseHTTPRequestHandler):
         def do_GET(self):
             self.send_response(200)
@@ -203,7 +287,6 @@ def main():
         server.serve_forever()
 
     threading.Thread(target=run_web_server, daemon=True).start()
-    # ----------------------------------------
 
     print("🤖 ربات با موفقیت روشن شد و آماده به کار است...")
     app.run_polling()
