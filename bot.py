@@ -4,6 +4,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 from datetime import datetime, timedelta
 import pytz
+import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -14,6 +15,7 @@ scheduler = BackgroundScheduler(timezone=LOCAL_TZ)
 scheduler.start()
 
 global_app = None
+main_loop = None # ذخیره لوپ اصلی برنامه
 
 async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -209,13 +211,15 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
         print(f"❌ خطا در ارسال پست: {e}")
 
 def scheduled_job_wrapper(channel_id, chan_name, input_path, voice_path, title, user_data):
-    global global_app
-    if global_app:
-        import asyncio
-        asyncio.run_coroutine_threadsafe(
-            send_post_to_channel(global_app.bot, channel_id, chan_name, input_path, voice_path, title, user_data),
-            global_app.loop
-        )
+    global global_app, main_loop
+    if global_app and main_loop:
+        try:
+            asyncio.run_coroutine_threadsafe(
+                send_post_to_channel(global_app.bot, channel_id, chan_name, input_path, voice_path, title, user_data),
+                main_loop
+            )
+        except Exception as e:
+            print(f"❌ Scheduler execution error: {e}")
 
 async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -268,7 +272,7 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text(f"⏰ پست با موفقیت برای **{time_text}** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
 
 def main():
-    global global_app
+    global global_app, main_loop
     TOKEN = os.getenv("TELEGRAM_TOKEN", "")
     RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "")
     
@@ -277,6 +281,12 @@ def main():
         return
     
     global_app = ApplicationBuilder().token(TOKEN).build()
+    
+    # ثبت لوپ اصلی برنامه‌
+    try:
+        main_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        main_loop = asyncio.get_event_loop()
     
     global_app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     global_app.add_handler(MessageHandler(filters.AUDIO | filters.Document.ALL | (filters.TEXT & ~filters.COMMAND), handle_audio))
