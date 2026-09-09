@@ -2,6 +2,7 @@ import os
 import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
+from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -44,7 +45,6 @@ async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as e:
             print(f"Like error: {e}")
 
-# تابع پردازش صوت با ffmpeg
 def process_audio_clip(input_path, wav_path, ogg_path):
     clip_duration = "25"
     
@@ -58,7 +58,6 @@ def process_audio_clip(input_path, wav_path, ogg_path):
     ogg_cmd = ["ffmpeg", "-y", "-i", wav_path, "-c:a", "libopus", "-b:a", "64k", ogg_path]
     subprocess.run(ogg_cmd, capture_output=True)
 
-# دریافت عکس کاور اختصاصی مجزا
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     os.makedirs("downloads", exist_ok=True)
     user_id = update.effective_user.id
@@ -67,10 +66,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await photo_file.download_to_drive(custom_thumb_path)
     
     context.user_data['custom_thumb_path'] = custom_thumb_path
-    print(f"📸 عکس کاور برای کاربر {user_id} ذخیره شد.")
     await update.message.reply_text("✅ عکس کاور اختصاصی با موفقیت ذخیره شد! حالا موزیک را بفرستید.")
 
-# دریافت موزیک
 async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ در حال پردازش هوشمند موزیک...")
     
@@ -107,24 +104,20 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     keyboard = [
         [
-            InlineKeyboardButton("📢 دلگرافی‌ها (تست)", callback_data="chan_1"),
-            InlineKeyboardButton("📢 آهنگ زیبا موزیک", callback_data="chan_2")
+            InlineKeyboardButton("🚀 ارسال آنی همین الان", callback_data="send_now"),
+            InlineKeyboardButton("⏰ زمان‌بندی (تست ۱ دقیقه‌ای)", callback_data="sched_1min")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await update.message.reply_text("✅ پردازش انجام شد. حالا انتخاب کن این پست به کدام کانال ارسال شود:", reply_markup=reply_markup)
+    await update.message.reply_text("✅ پردازش انجام شد. نحوه ارسال پست را انتخاب کن:", reply_markup=reply_markup)
 
-# ارسال پست به کانال با مدیریت هوشمند عکس
 async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_path, title, user_data):
     custom_thumb = user_data.get('custom_thumb_path')
     final_thumb_path = None
 
     if custom_thumb and os.path.exists(custom_thumb):
         final_thumb_path = custom_thumb
-        print(f"📸 عکس کاور پیدا شد و روی پست قرار می‌گیرد: {final_thumb_path}")
-    else:
-        print("⚠️ هیچ عکس کاوری برای این پست پیدا نشد.")
 
     keyboard = [
         [
@@ -178,53 +171,6 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
     except Exception as e:
         print(f"❌ خطا در ارسال پست: {e}")
 
-# دریافت موزیک و نمایش گزینه‌های ارسال (آنی یا زمان‌بندی)
-async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("⏳ در حال پردازش هوشمند موزیک...")
-    
-    os.makedirs("downloads", exist_ok=True)
-    user_id = update.effective_user.id
-    input_path = os.path.join("downloads", f"song_{user_id}.mp3")
-    wav_path = os.path.join("downloads", f"temp_{user_id}.wav")
-    voice_path = os.path.join("downloads", f"voice_{user_id}.ogg")
-    
-    if update.message.audio:
-        audio_msg = update.message.audio
-        audio_file = await audio_msg.get_file()
-        title = audio_msg.title or audio_msg.file_name or "موزیک"
-    elif update.message.document:
-        audio_msg = update.message.document
-        audio_file = await audio_msg.get_file()
-        title = audio_msg.file_name or "موزیک"
-    else:
-        await update.message.reply_text("❌ لطفاً یک فایل صوتی معتبر ارسال کنید.")
-        return
-
-    try:
-        await audio_file.download_to_drive(input_path, read_timeout=60, write_timeout=60, connect_timeout=60)
-    except Exception as e:
-        await update.message.reply_text(f"❌ خطا در دانلود فایل: {e}")
-        return
-
-    process_audio_clip(input_path, wav_path, voice_path)
-    
-    context.user_data['input_path'] = input_path
-    context.user_data['voice_path'] = voice_path
-    context.user_data['title'] = title
-    context.user_data['user_id'] = user_id
-    
-    # منوی انتخاب نحوه ارسال (فوری یا زمان‌بندی شده)
-    keyboard = [
-        [
-            InlineKeyboardButton("🚀 ارسال آنی همین الان", callback_data="send_now"),
-            InlineKeyboardButton("⏰ زمان‌بندی (تست ۱ دقیقه‌ای)", callback_data="sched_1min")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text("✅ پردازش انجام شد. نحوه ارسال پست را انتخاب کن:", reply_markup=reply_markup)
-
-# مدیریت دکمه‌های نوع ارسال
 async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -248,24 +194,21 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"✅ پست با موفقیت به کانال ارسال شد!")
 
     elif data == "sched_1min":
-        # زمان‌بندی برای 1 دقیقه بعد (جهت تست سریع)
         run_time = datetime.now() + timedelta(minutes=1)
-        
         scheduler.add_job(
             send_post_to_channel,
             'date',
             run_date=run_time,
             args=[context.bot, channel_id, chan_name, input_path, voice_path, title, context.user_data]
         )
-        
-        await query.edit_message_text(f"⏰ پست با موفقیت برای **۱ دقیقه دیگر** ({run_time.strftime('%H:%M:%S')}) زمان‌بندی شد و سر موعد به کانال ارسال خواهد شد!")
+        await query.edit_message_text(f"⏰ پست با موفقیت برای **۱ دقیقه دیگر** ({run_time.strftime('%H:%M:%S')}) زمان‌بندی شد!")
 
 def main():
-    # توکن خود را اینجا قرار دهید
-    TOKEN = "8962007345:AAEXrg15fqLc6T1KFxSm7vkQR220BJWIdpc"
+    # خواندن توکن به صورت امن از متغیرهای محیطی Render
+    TOKEN = os.getenv("TELEGRAM_TOKEN", "")
     
     if not TOKEN:
-        print("❌ خطا: توکن ربات پیدا نشد!")
+        print("❌ خطا: توکن ربات در متغیرهای محیطی پیدا نشد!")
         return
     
     app = ApplicationBuilder().token(TOKEN).build()
