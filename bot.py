@@ -8,11 +8,13 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 from apscheduler.schedulers.background import BackgroundScheduler
 
-# تنظیم منطقه زمانی دقیق برای هامبورگ، آلمان
 LOCAL_TZ = pytz.timezone('Europe/Berlin')
 
 scheduler = BackgroundScheduler(timezone=LOCAL_TZ)
 scheduler.start()
+
+# متغیر سراسری برای نگهداری application برای دسترسی در اسچولر
+global_app = None
 
 async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -90,10 +92,10 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             run_time = datetime.now(LOCAL_TZ) + timedelta(hours=hours)
             scheduler.add_job(
-                send_post_to_channel,
+                scheduled_job_wrapper,
                 'date',
                 run_date=run_time,
-                args=[context.bot, channel_id, chan_name, input_path, voice_path, title, context.user_data]
+                args=[channel_id, chan_name, input_path, voice_path, title, context.user_data]
             )
             context.user_data['waiting_for_custom_hours'] = False
             await update.message.reply_text(f"⏰ پست با موفقیت برای **{hours} ساعت دیگر** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
@@ -211,6 +213,16 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
     except Exception as e:
         print(f"❌ خطا در ارسال پست: {e}")
 
+def scheduled_job_wrapper(channel_id, chan_name, input_path, voice_path, title, user_data):
+    global global_app
+    if global_app:
+        # اجرای ایمن تابع async در لوپ ربات
+        import asyncio
+        asyncio.run_coroutine_threadsafe(
+            send_post_to_channel(global_app.bot, channel_id, chan_name, input_path, voice_path, title, user_data),
+            global_app.loop
+        )
+
 async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -253,27 +265,28 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     scheduler.add_job(
-        send_post_to_channel,
+        scheduled_job_wrapper,
         'date',
         run_date=run_time,
-        args=[context.bot, channel_id, chan_name, input_path, voice_path, title, context.user_data]
+        args=[channel_id, chan_name, input_path, voice_path, title, context.user_data]
     )
     
     await query.edit_message_text(f"⏰ پست با موفقیت برای **{time_text}** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
 
 def main():
+    global global_app
     TOKEN = os.getenv("TELEGRAM_TOKEN", "")
     
     if not TOKEN:
         print("❌ خطا: توکن ربات در متغیرهای محیطی پیدا نشد!")
         return
     
-    app = ApplicationBuilder().token(TOKEN).build()
+    global_app = ApplicationBuilder().token(TOKEN).build()
     
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    app.add_handler(MessageHandler(filters.AUDIO | filters.Document.AUDIO | filters.TEXT & ~filters.COMMAND, handle_audio))
-    app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(send_now|sched_)"))
-    app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
+    global_app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    global_app.add_handler(MessageHandler(filters.AUDIO | filters.Document.AUDIO | filters.TEXT & ~filters.COMMAND, handle_audio))
+    global_app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(send_now|sched_)"))
+    global_app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
 
     class SimpleHandler(BaseHTTPRequestHandler):
         def do_GET(self):
@@ -289,7 +302,7 @@ def main():
     threading.Thread(target=run_web_server, daemon=True).start()
 
     print("🤖 ربات با موفقیت روشن شد و آماده به کار است...")
-    app.run_polling()
+    global_app.run_polling()
 
 if __name__ == "__main__":
     main()
