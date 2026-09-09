@@ -272,15 +272,15 @@ import time  # مطمئن شو این کتابخانه بالا وارد شده 
 
 def main():
     global global_app
-    TOKEN = os.getenv("TELEGRAM_TOKEN", "")
     
+    # ⏳ پیش از هرگونه اتصال و ساخت اپلیکیشن، ۵ ثانیه صبر می‌کنیم تا پالس قبلی کاملاً قطع شود
+    print("⏳ در حال مکث ۵ ثانیه‌ای برای آزاد شدن کامل توکن...")
+    time.sleep(5)
+    
+    TOKEN = os.getenv("TELEGRAM_TOKEN", "")
     if not TOKEN:
         print("❌ خطا: توکن ربات پیدا نشد!")
         return
-    
-    # ⏳ ۵ ثانیه مکث برای اینکه نمونه قبلی در رندر کاملاً متوقف شود و توکن آزاد گردد
-    print("⏳ در حال آماده‌سازی و انتظار برای آزاد شدن توکن...")
-    time.sleep(5)
     
     global_app = ApplicationBuilder().token(TOKEN).build()
     
