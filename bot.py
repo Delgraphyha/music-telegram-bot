@@ -71,7 +71,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await photo_file.download_to_drive(custom_thumb_path)
     
     context.user_data['custom_thumb_path'] = custom_thumb_path
-    await update.message.reply_text("✅ عکس کاور اختصاصی با موفقیت ذخیره شد! حالا موزیک را بفرستید.")
+    await update.message.reply_text("✅ عکس کاور اختصاصی ذخیره شد! حالا موزیک را بفرستید.")
 
 async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get('waiting_for_custom_hours'):
@@ -85,7 +85,7 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chan_name = "Test Channel"
             
             if not input_path or not os.path.exists(input_path):
-                await update.message.reply_text("❌ اطلاعات فایل منقضی شده است. لطفاً دوباره موزیک را بفرستید.")
+                await update.message.reply_text("❌ اطلاعات فایل منقضی شده است. دوباره موزیک را بفرستید.")
                 context.user_data['waiting_for_custom_hours'] = False
                 return
 
@@ -97,10 +97,10 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 args=[channel_id, chan_name, input_path, voice_path, title, context.user_data]
             )
             context.user_data['waiting_for_custom_hours'] = False
-            await update.message.reply_text(f"⏰ پست با موفقیت برای **{hours} ساعت دیگر** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
+            await update.message.reply_text(f"⏰ پست برای **{hours} ساعت دیگر** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
             return
         except ValueError:
-            await update.message.reply_text("❌ لطفاً فقط یک عدد صحیح (مثلاً 8 یا 12) وارد کنید:")
+            await update.message.reply_text("❌ لطفاً فقط یک عدد صحیح وارد کنید:")
             return
 
     await update.message.reply_text("⏳ در حال پردازش هوشمند موزیک...")
@@ -112,13 +112,11 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     voice_path = os.path.join("downloads", f"voice_{user_id}.ogg")
     
     if update.message.audio:
-        audio_msg = update.message.audio
-        audio_file = await audio_msg.get_file()
-        title = audio_msg.title or audio_msg.file_name or "موزیک"
+        audio_file = await update.message.audio.get_file()
+        title = update.message.audio.title or update.message.audio.file_name or "موزیک"
     elif update.message.document:
-        audio_msg = update.message.document
-        audio_file = await audio_msg.get_file()
-        title = audio_msg.file_name or "موزیک"
+        audio_file = await update.message.document.get_file()
+        title = update.message.document.file_name or "موزیک"
     else:
         await update.message.reply_text("❌ لطفاً یک فایل صوتی معتبر ارسال کنید.")
         return
@@ -155,10 +153,7 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_path, title, user_data):
     custom_thumb = user_data.get('custom_thumb_path')
-    final_thumb_path = None
-
-    if custom_thumb and os.path.exists(custom_thumb):
-        final_thumb_path = custom_thumb
+    final_thumb_path = custom_thumb if (custom_thumb and os.path.exists(custom_thumb)) else None
 
     keyboard = [
         [
@@ -276,13 +271,14 @@ def main():
     TOKEN = os.getenv("TELEGRAM_TOKEN", "")
     
     if not TOKEN:
-        print("❌ خطا: توکن ربات در متغیرهای محیطی پیدا نشد!")
+        print("❌ خطا: توکن ربات پیدا نشد!")
         return
     
     global_app = ApplicationBuilder().token(TOKEN).build()
     
     global_app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    global_app.add_handler(MessageHandler(filters.AUDIO | filters.Document.AUDIO | filters.TEXT & ~filters.COMMAND, handle_audio))
+    # پشتیبانی کامل از فایل صوتی یا سند (Document)
+    global_app.add_handler(MessageHandler(filters.AUDIO | filters.Document.ALL | (filters.TEXT & ~filters.COMMAND), handle_audio))
     global_app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(send_now|sched_)"))
     global_app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
 
