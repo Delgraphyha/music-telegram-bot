@@ -2,7 +2,7 @@ import os
 import asyncio
 from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 import yt_dlp
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -32,11 +32,11 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("✅ عضو شدم، بررسی مجدد", callback_data="check_sub")]
         ]
         await update.message.reply_text(
-            "🎵 برای استفاده از ربات و دریافت موزیک‌های فارسی و خارجی، لطفاً ابتدا در کانال ما عضو شوید:",
+            "🎵 برای استفاده از ربات و دریافت موزیک‌ها، لطفاً ابتدا در کانال ما عضو شوید:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     else:
-        await update.message.reply_text("🎧 عضویت شما تایید شد!\nحالا نام آهنگ فارسی یا خارجی مورد نظر خود را بفرستید:")
+        await update.message.reply_text("🎧 عضویت شما تایید شد!\nحالا نام آهنگ مورد نظر خود را بفرستید تا جستجو کنم:")
 
 async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -52,19 +52,24 @@ async def button_callback_handler(update: Update, context: ContextTypes.DEFAULT_
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    is_member = await check_subscription(user_id, context)
     
-    if not is_member:
-        await update.message.reply_text("⚠️ لطفاً ابتدا در کانال @delgraphyha عضو شوید تا بتوانید از ربات استفاده کنید.")
-        return
+    # اگر پیام در گروه فرستاده شده، ربات می‌تواند به آن پاسخ دهد
+    if update.message.chat.type in ['group', 'supergroup']:
+        # بررسی عضویت در گروه‌ها اختیاری یا قابل تنظیم است
+        pass
+    else:
+        is_member = await check_subscription(user_id, context)
+        if not is_member:
+            await update.message.reply_text("⚠️ لطفاً ابتدا در کانال @delgraphyha عضو شوید تا بتوانید از ربات استفاده کنید.")
+            return
         
     query_text = update.message.text
-    processing_msg = await update.message.reply_text("🔍 در حال جستجوی آهنگ مورد نظر...")
+    processing_msg = await update.message.reply_text("🔍 در حال جستجوی موزیک در منابع مختلف...")
 
     try:
         ydl_opts = {
             'format': 'bestaudio/best',
-            'default_search': 'ytsearch1',
+            'default_search': 'ytsearch3', # جستجوی ۳ نتیجه برتر برای دقت بیشتر
             'noplaylist': True,
             'outtmpl': 'song.%(ext)s',
             'postprocessors': [{
@@ -96,7 +101,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         print(f"Error downloading music: {e}")
-        await update.message.reply_text("❌ در پردازش درخواست شما خطایی رخ داد.")
+        await update.message.reply_text("❌ در جستجوی موزیک خطایی رخ داد یا نتیجه‌ای یافت نشد.")
 
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
@@ -121,11 +126,12 @@ def main():
 
     telegram_app = ApplicationBuilder().token(TOKEN).build()
     
-    telegram_app.add_handler(MessageHandler(filters.COMMAND & filters.Regex("^/start"), start_handler))
+    telegram_app.add_handler(CommandHandler("start", start_handler))
     telegram_app.add_handler(CallbackQueryHandler(button_callback_handler, pattern="^check_sub$"))
     telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
     main_loop.run_until_complete(telegram_app.initialize())
+    main_loop.run_until_complete(telegram_app.start())
     
     RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")
     if RENDER_EXTERNAL_URL:
