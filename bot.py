@@ -268,19 +268,28 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     await query.edit_message_text(f"⏰ پست با موفقیت برای **{time_text}** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
 
-import time  # مطمئن شو این کتابخانه بالا وارد شده باشد
+import time
+import asyncio
+from telegram import Bot
 
 def main():
     global global_app
-    
-    # ⏳ پیش از هرگونه اتصال و ساخت اپلیکیشن، ۵ ثانیه صبر می‌کنیم تا پالس قبلی کاملاً قطع شود
-    print("⏳ در حال مکث ۵ ثانیه‌ای برای آزاد شدن کامل توکن...")
-    time.sleep(5)
-    
     TOKEN = os.getenv("TELEGRAM_TOKEN", "")
+    
     if not TOKEN:
         print("❌ خطا: توکن ربات پیدا نشد!")
         return
+    
+    # پاک کردن اجباری هرگونه وب‌هوک یا اتصال قبلی معلق از روی سرور تلگرام
+    print("🧹 در حال پاکسازی اتصال‌های قبلی از سرور تلگرام...")
+    try:
+        temp_bot = Bot(TOKEN)
+        asyncio.run(temp_bot.delete_webhook(drop_pending_updates=True))
+    except Exception as e:
+        print(f"⚠️ خطا در پاکسازی وب‌هوک: {e}")
+
+    print("⏳ مکث ۵ ثانیه‌ای برای تثبیت توکن...")
+    time.sleep(5)
     
     global_app = ApplicationBuilder().token(TOKEN).build()
     
