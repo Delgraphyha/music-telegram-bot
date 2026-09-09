@@ -4,9 +4,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 from datetime import datetime, timedelta
 import pytz
-import time
-import asyncio
-from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -54,7 +52,6 @@ async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 def process_audio_clip(input_path, wav_path, ogg_path):
     clip_duration = "25"
-    
     cut_cmd = ["ffmpeg", "-y", "-ss", "30", "-i", input_path, "-t", clip_duration, "-c:a", "libmp3lame", wav_path]
     res = subprocess.run(cut_cmd, capture_output=True)
     
@@ -270,28 +267,14 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     await query.edit_message_text(f"⏰ پست با موفقیت برای **{time_text}** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
 
-import time
-import asyncio
-from telegram import Bot
-
 def main():
     global global_app
     TOKEN = os.getenv("TELEGRAM_TOKEN", "")
+    RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "")
     
     if not TOKEN:
         print("❌ خطا: توکن ربات پیدا نشد!")
         return
-    
-    # پاک کردن اجباری هرگونه وب‌هوک یا اتصال قبلی معلق از روی سرور تلگرام
-    print("🧹 در حال پاکسازی اتصال‌های قبلی از سرور تلگرام...")
-    try:
-        temp_bot = Bot(TOKEN)
-        asyncio.run(temp_bot.delete_webhook(drop_pending_updates=True))
-    except Exception as e:
-        print(f"⚠️ خطا در پاکسازی وب‌هوک: {e}")
-
-    print("⏳ مکث ۵ ثانیه‌ای برای تثبیت توکن...")
-    time.sleep(5)
     
     global_app = ApplicationBuilder().token(TOKEN).build()
     
@@ -300,21 +283,20 @@ def main():
     global_app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(send_now|sched_)"))
     global_app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
 
-    class SimpleHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"Bot is running!")
+    port = int(os.environ.get("PORT", 10000))
 
-    def run_web_server():
-        port = int(os.environ.get("PORT", 10000))
-        server = HTTPServer(("0.0.0.0", port), SimpleHandler)
-        server.serve_forever()
-
-    threading.Thread(target=run_web_server, daemon=True).start()
-
-    print("🤖 ربات با موفقیت روشن شد و آماده به کار است...")
-    global_app.run_polling(drop_pending_updates=True)
+    if RENDER_EXTERNAL_URL:
+        webhook_url = f"{RENDER_EXTERNAL_URL.rstrip('/')}/{TOKEN}"
+        print(f"🌐 در حال راه‌اندازی Webhook روی آدرس: {webhook_url}")
+        global_app.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            secret_token="my_secure_secret_token",
+            webhook_url=webhook_url
+        )
+    else:
+        print("💻 در حال راه‌اندازی با روش Polling...")
+        global_app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
