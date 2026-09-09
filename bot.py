@@ -69,6 +69,36 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ عکس کاور اختصاصی با موفقیت ذخیره شد! حالا موزیک را بفرستید.")
 
 async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # اگر کاربر در حال وارد کردن ساعت سفارشی باشد
+    if context.user_data.get('waiting_for_custom_hours'):
+        text = update.message.text
+        try:
+            hours = int(text)
+            input_path = context.user_data.get('input_path')
+            voice_path = context.user_data.get('voice_path')
+            title = context.user_data.get('title', 'Music')
+            channel_id = "@testDelgraphyha"
+            chan_name = "Test Channel"
+            
+            if not input_path or not os.path.exists(input_path):
+                await update.message.reply_text("❌ اطلاعات فایل منقضی شده است. لطفاً دوباره موزیک را بفرستید.")
+                context.user_data['waiting_for_custom_hours'] = False
+                return
+
+            run_time = datetime.now() + timedelta(hours=hours)
+            scheduler.add_job(
+                send_post_to_channel,
+                'date',
+                run_date=run_time,
+                args=[context.bot, channel_id, chan_name, input_path, voice_path, title, context.user_data]
+            )
+            context.user_data['waiting_for_custom_hours'] = False
+            await update.message.reply_text(f"⏰ پست با موفقیت برای **{hours} ساعت دیگر** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
+            return
+        except ValueError:
+            await update.message.reply_text("❌ لطفاً فقط یک عدد صحیح (مثلاً 8 یا 12) وارد کنید:")
+            return
+
     await update.message.reply_text("⏳ در حال پردازش هوشمند موزیک...")
     
     os.makedirs("downloads", exist_ok=True)
@@ -102,18 +132,18 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['title'] = title
     context.user_data['user_id'] = user_id
     
-    # منوی کامل زمان‌بندی برای انتخاب‌های متنوع
+    # منوی جدید شامل تست ۱ دقیقه‌ای و زمان دلخواه
     keyboard = [
         [
             InlineKeyboardButton("🚀 ارسال آنی", callback_data="send_now"),
-            InlineKeyboardButton("⏱ ۳۰ دقیقه دیگر", callback_data="sched_30m")
+            InlineKeyboardButton("⚡ تست (۱ دقیقه‌ای)", callback_data="sched_1min")
         ],
         [
-            InlineKeyboardButton("⏰ ۲ ساعت دیگر", callback_data="sched_2h"),
-            InlineKeyboardButton("📅 ۶ ساعت دیگر", callback_data="sched_6h")
+            InlineKeyboardButton("⏱ ۶ ساعت دیگر", callback_data="sched_6h"),
+            InlineKeyboardButton("⏳ ۱۲ ساعت دیگر", callback_data="sched_12h")
         ],
         [
-            InlineKeyboardButton("📆 فردا همین موقع", callback_data="sched_24h")
+            InlineKeyboardButton("✏️ ورود ساعت دلخواه (مثلاً ۸ یا ۱۰ ساعت)", callback_data="sched_custom")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -203,19 +233,21 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"✅ پست با موفقیت به کانال ارسال شد!")
         return
 
+    if data == "sched_custom":
+        context.user_data['waiting_for_custom_hours'] = True
+        await query.edit_message_text("✍️ لطفاً تعداد ساعت مد نظر خود را به صورت عدد (مثلاً `8` یا `12`) در چت بفرستید:")
+        return
+
     # محاسبه زمان‌بندی‌های مختلف
-    if data == "sched_30m":
-        run_time = now + timedelta(minutes=30)
-        time_text = "۳۰ دقیقه دیگر"
-    elif data == "sched_2h":
-        run_time = now + timedelta(hours=2)
-        time_text = "۲ ساعت دیگر"
+    if data == "sched_1min":
+        run_time = now + timedelta(minutes=1)
+        time_text = "۱ دقیقه دیگر"
     elif data == "sched_6h":
         run_time = now + timedelta(hours=6)
         time_text = "۶ ساعت دیگر"
-    elif data == "sched_24h":
-        run_time = now + timedelta(days=1)
-        time_text = "فردا همین موقع"
+    elif data == "sched_12h":
+        run_time = now + timedelta(hours=12)
+        time_text = "۱۲ ساعت دیگر"
     else:
         return
 
@@ -238,7 +270,7 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
     
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    app.add_handler(MessageHandler(filters.AUDIO | filters.Document.AUDIO, handle_audio))
+    app.add_handler(MessageHandler(filters.AUDIO | filters.Document.AUDIO | filters.TEXT & ~filters.COMMAND, handle_audio))
     app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(send_now|sched_)"))
     app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
 
