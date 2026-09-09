@@ -13,7 +13,6 @@ LOCAL_TZ = pytz.timezone('Europe/Berlin')
 scheduler = BackgroundScheduler(timezone=LOCAL_TZ)
 scheduler.start()
 
-# متغیر سراسری برای نگهداری application برای دسترسی در اسچولر
 global_app = None
 
 async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -155,6 +154,7 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ پردازش انجام شد. زمان انتشار پست را انتخاب کن:", reply_markup=reply_markup)
 
 async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_path, title, user_data):
+    print("🚀 تابع ارسال پست به کانال فراخوانی شد!")
     custom_thumb = user_data.get('custom_thumb_path')
     final_thumb_path = None
 
@@ -214,9 +214,9 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
         print(f"❌ خطا در ارسال پست: {e}")
 
 def scheduled_job_wrapper(channel_id, chan_name, input_path, voice_path, title, user_data):
+    print("⏰ زمان‌بندی فعال شد و جاب در حال اجراست...")
     global global_app
     if global_app:
-        # اجرای ایمن تابع async در لوپ ربات
         import asyncio
         asyncio.run_coroutine_threadsafe(
             send_post_to_channel(global_app.bot, channel_id, chan_name, input_path, voice_path, title, user_data),
