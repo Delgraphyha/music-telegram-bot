@@ -102,15 +102,23 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['title'] = title
     context.user_data['user_id'] = user_id
     
+    # منوی کامل زمان‌بندی برای انتخاب‌های متنوع
     keyboard = [
         [
-            InlineKeyboardButton("🚀 ارسال آنی همین الان", callback_data="send_now"),
-            InlineKeyboardButton("⏰ زمان‌بندی (تست ۱ دقیقه‌ای)", callback_data="sched_1min")
+            InlineKeyboardButton("🚀 ارسال آنی", callback_data="send_now"),
+            InlineKeyboardButton("⏱ ۳۰ دقیقه دیگر", callback_data="sched_30m")
+        ],
+        [
+            InlineKeyboardButton("⏰ ۲ ساعت دیگر", callback_data="sched_2h"),
+            InlineKeyboardButton("📅 ۶ ساعت دیگر", callback_data="sched_6h")
+        ],
+        [
+            InlineKeyboardButton("📆 فردا همین موقع", callback_data="sched_24h")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await update.message.reply_text("✅ پردازش انجام شد. نحوه ارسال پست را انتخاب کن:", reply_markup=reply_markup)
+    await update.message.reply_text("✅ پردازش انجام شد. زمان انتشار پست را انتخاب کن:", reply_markup=reply_markup)
 
 async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_path, title, user_data):
     custom_thumb = user_data.get('custom_thumb_path')
@@ -187,24 +195,40 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     title = context.user_data.get('title', 'Music')
+    now = datetime.now()
 
     if data == "send_now":
         await query.edit_message_text(f"⏳ در حال ارسال مستقیم پست به کانال {chan_name}...")
         await send_post_to_channel(context.bot, channel_id, chan_name, input_path, voice_path, title, context.user_data)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"✅ پست با موفقیت به کانال ارسال شد!")
+        return
 
-    elif data == "sched_1min":
-        run_time = datetime.now() + timedelta(minutes=1)
-        scheduler.add_job(
-            send_post_to_channel,
-            'date',
-            run_date=run_time,
-            args=[context.bot, channel_id, chan_name, input_path, voice_path, title, context.user_data]
-        )
-        await query.edit_message_text(f"⏰ پست با موفقیت برای **۱ دقیقه دیگر** ({run_time.strftime('%H:%M:%S')}) زمان‌بندی شد!")
+    # محاسبه زمان‌بندی‌های مختلف
+    if data == "sched_30m":
+        run_time = now + timedelta(minutes=30)
+        time_text = "۳۰ دقیقه دیگر"
+    elif data == "sched_2h":
+        run_time = now + timedelta(hours=2)
+        time_text = "۲ ساعت دیگر"
+    elif data == "sched_6h":
+        run_time = now + timedelta(hours=6)
+        time_text = "۶ ساعت دیگر"
+    elif data == "sched_24h":
+        run_time = now + timedelta(days=1)
+        time_text = "فردا همین موقع"
+    else:
+        return
+
+    scheduler.add_job(
+        send_post_to_channel,
+        'date',
+        run_date=run_time,
+        args=[context.bot, channel_id, chan_name, input_path, voice_path, title, context.user_data]
+    )
+    
+    await query.edit_message_text(f"⏰ پست با موفقیت برای **{time_text}** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
 
 def main():
-    # خواندن توکن به صورت امن از متغیرهای محیطی Render
     TOKEN = os.getenv("TELEGRAM_TOKEN", "")
     
     if not TOKEN:
