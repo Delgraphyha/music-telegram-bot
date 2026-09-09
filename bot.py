@@ -3,11 +3,15 @@ import subprocess
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 from datetime import datetime, timedelta
+import pytz
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 from apscheduler.schedulers.background import BackgroundScheduler
 
-scheduler = BackgroundScheduler()
+# تنظیم منطقه زمانی دقیق برای هامبورگ، آلمان
+LOCAL_TZ = pytz.timezone('Europe/Berlin')
+
+scheduler = BackgroundScheduler(timezone=LOCAL_TZ)
 scheduler.start()
 
 async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -69,7 +73,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ عکس کاور اختصاصی با موفقیت ذخیره شد! حالا موزیک را بفرستید.")
 
 async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # اگر کاربر در حال وارد کردن ساعت سفارشی باشد
     if context.user_data.get('waiting_for_custom_hours'):
         text = update.message.text
         try:
@@ -85,7 +88,7 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context.user_data['waiting_for_custom_hours'] = False
                 return
 
-            run_time = datetime.now() + timedelta(hours=hours)
+            run_time = datetime.now(LOCAL_TZ) + timedelta(hours=hours)
             scheduler.add_job(
                 send_post_to_channel,
                 'date',
@@ -132,7 +135,6 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['title'] = title
     context.user_data['user_id'] = user_id
     
-    # منوی جدید شامل تست ۱ دقیقه‌ای و زمان دلخواه
     keyboard = [
         [
             InlineKeyboardButton("🚀 ارسال آنی", callback_data="send_now"),
@@ -143,7 +145,7 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("⏳ ۱۲ ساعت دیگر", callback_data="sched_12h")
         ],
         [
-            InlineKeyboardButton("✏️ ورود ساعت دلخواه (مثلاً ۸ یا ۱۰ ساعت)", callback_data="sched_custom")
+            InlineKeyboardButton("✏️ ورود ساعت دلخواه", callback_data="sched_custom")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -225,7 +227,7 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     title = context.user_data.get('title', 'Music')
-    now = datetime.now()
+    now = datetime.now(LOCAL_TZ)
 
     if data == "send_now":
         await query.edit_message_text(f"⏳ در حال ارسال مستقیم پست به کانال {chan_name}...")
@@ -238,7 +240,6 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.edit_message_text("✍️ لطفاً تعداد ساعت مد نظر خود را به صورت عدد (مثلاً `8` یا `12`) در چت بفرستید:")
         return
 
-    # محاسبه زمان‌بندی‌های مختلف
     if data == "sched_1min":
         run_time = now + timedelta(minutes=1)
         time_text = "۱ دقیقه دیگر"
