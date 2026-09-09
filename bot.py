@@ -268,6 +268,8 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     await query.edit_message_text(f"⏰ پست با موفقیت برای **{time_text}** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
 
+import time  # مطمئن شو این کتابخانه بالا وارد شده باشد
+
 def main():
     global global_app
     TOKEN = os.getenv("TELEGRAM_TOKEN", "")
@@ -276,10 +278,13 @@ def main():
         print("❌ خطا: توکن ربات پیدا نشد!")
         return
     
+    # ⏳ ۵ ثانیه مکث برای اینکه نمونه قبلی در رندر کاملاً متوقف شود و توکن آزاد گردد
+    print("⏳ در حال آماده‌سازی و انتظار برای آزاد شدن توکن...")
+    time.sleep(5)
+    
     global_app = ApplicationBuilder().token(TOKEN).build()
     
     global_app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    # پشتیبانی کامل از فایل صوتی یا سند (Document)
     global_app.add_handler(MessageHandler(filters.AUDIO | filters.Document.ALL | (filters.TEXT & ~filters.COMMAND), handle_audio))
     global_app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(send_now|sched_)"))
     global_app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
