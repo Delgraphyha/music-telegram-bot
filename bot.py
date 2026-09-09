@@ -82,8 +82,8 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             input_path = context.user_data.get('input_path')
             voice_path = context.user_data.get('voice_path')
             title = context.user_data.get('title', 'Music')
-            channel_id = "@testDelgraphyha"
-            chan_name = "Test Channel"
+            channel_id = "@Delgraphyha"
+            chan_name = "@ahangzibamusic"
             
             if not input_path or not os.path.exists(input_path):
                 await update.message.reply_text("❌ اطلاعات فایل منقضی شده است. دوباره موزیک را بفرستید.")
@@ -187,6 +187,7 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
                     "🎵 **نسخه کامل موزیک**\n\n"
                     "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
                     "🎬 تیک‌تاک: [TikTok Profile](https://tiktok.com/@wanderovlog)"
+                    "📷 اینستاگرام: [Instagram Profile](https://instagram.com/delgraphyha)"
                 ),
                 parse_mode="Markdown",
                 reply_markup=reply_markup
@@ -198,10 +199,11 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
                 voice=voice,
                 caption=(
                     "✨ بخش جذاب آهنگ\n\n"
-                    "🎵 **گلچین ۲۵ ثانیه طلایی و پرانرژی موزیک**\n\n"
+                    "🎵 **گلچین ۲۵ ثانیه طلایی **\n\n"
                     "✨ لذت ببرید و نظرات خود را با ما در میان بگذارید.\n\n"
                     "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
                     "🎬 ما را در تیک‌تاک دنبال کنید: [TikTok Profile](https://tiktok.com/@wanderovlog)"
+                    "📷 اینستاگرام: [Instagram Profile](https://instagram.com/delgraphyha)"
                 ),
                 parse_mode="Markdown",
                 reply_markup=reply_markup
