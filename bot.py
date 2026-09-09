@@ -112,11 +112,13 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     voice_path = os.path.join("downloads", f"voice_{user_id}.ogg")
     
     if update.message.audio:
-        audio_file = await update.message.audio.get_file()
-        title = update.message.audio.title or update.message.audio.file_name or "موزیک"
+        audio_msg = update.message.audio
+        audio_file = await audio_msg.get_file()
+        title = audio_msg.title or audio_msg.file_name or "موزیک"
     elif update.message.document:
-        audio_file = await update.message.document.get_file()
-        title = update.message.document.file_name or "موزیک"
+        audio_msg = update.message.document
+        audio_file = await audio_msg.get_file()
+        title = audio_msg.file_name or "موزیک"
     else:
         await update.message.reply_text("❌ لطفاً یک فایل صوتی معتبر ارسال کنید.")
         return
