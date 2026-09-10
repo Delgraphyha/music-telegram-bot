@@ -14,7 +14,6 @@ scheduler = BackgroundScheduler(timezone=LOCAL_TZ)
 scheduler.start()
 
 global_app = None
-main_loop = None
 
 # راه‌اندازی سرور Flask برای پاسخ به UptimeRobot و وب‌هوق تلگرام
 app = Flask(__name__)
@@ -30,7 +29,7 @@ def webhook():
         try:
             json_data = request.get_json(force=True)
             update = Update.de_json(json_data, global_app.bot)
-            asyncio.run_coroutine_threadsafe(global_app.process_update(update), main_loop)
+            asyncio.run(global_app.process_update(update))
         except Exception as e:
             print(f"Webhook error: {e}")
     return "OK", 200
@@ -229,13 +228,10 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
         print(f"❌ خطا در ارسال پست: {e}")
 
 def scheduled_job_wrapper(channel_id, chan_name, input_path, voice_path, title, user_data):
-    global global_app, main_loop
-    if global_app and main_loop:
+    global global_app
+    if global_app:
         try:
-            asyncio.run_coroutine_threadsafe(
-                send_post_to_channel(global_app.bot, channel_id, chan_name, input_path, voice_path, title, user_data),
-                main_loop
-            )
+            asyncio.run(send_post_to_channel(global_app.bot, channel_id, chan_name, input_path, voice_path, title, user_data))
         except Exception as e:
             print(f"❌ Scheduler execution error: {e}")
 
@@ -315,7 +311,7 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.edit_message_text(f"⏰ پست برای **{time_text}** در {chan_name} (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
 
 def main():
-    global global_app, main_loop
+    global global_app
     TOKEN = os.getenv("TELEGRAM_TOKEN", "")
     RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "")
      
@@ -325,31 +321,23 @@ def main():
      
     global_app = ApplicationBuilder().token(TOKEN).build()
      
-    try:
-        main_loop = asyncio.get_event_loop()
-        if main_loop.is_closed():
-            main_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(main_loop)
-    except RuntimeError:
-        main_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(main_loop)
+    # مقداردهی اولیه ربات برای کار با وب‌هوق
+    async def init_bot():
+        await global_app.initialize()
+        await global_app.start()
+        if RENDER_EXTERNAL_URL:
+            base_url = RENDER_EXTERNAL_URL.rstrip('/')
+            webhook_url = f"{base_url}/{TOKEN}"
+            print(f"🌐 در حال تنظیم وب‌هوق روی: {webhook_url}")
+            await global_app.bot.set_webhook(webhook_url)
+
+    asyncio.run(init_bot())
      
     global_app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     global_app.add_handler(MessageHandler(filters.AUDIO | filters.Document.ALL, handle_audio))
     global_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_or_hours))
     global_app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(chan_|send_now|sched_)"))
     global_app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
-
-    if RENDER_EXTERNAL_URL:
-        base_url = RENDER_EXTERNAL_URL.rstrip('/')
-        webhook_url = f"{base_url}/{TOKEN}"
-        print(f"🌐 در حال تنظیم وب‌هوق روی: {webhook_url}")
-        
-        # مقداردهی وب‌هوق به تلگرام
-        async def set_hook():
-            await global_app.bot.set_webhook(webhook_url)
-        
-        asyncio.run(set_hook())
 
     port = int(os.environ.get("PORT", 10000))
     print(f"🚀 راه‌اندازی سرور روی پورت {port}...")
