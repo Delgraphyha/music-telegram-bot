@@ -80,10 +80,8 @@ async def handle_text_or_hours(update: Update, context: ContextTypes.DEFAULT_TYP
             input_path = context.user_data.get('input_path')
             voice_path = context.user_data.get('voice_path')
             title = context.user_data.get('title', 'Music')
-            
-            # کانال مقصد (می‌توانید بین تست و اصلی جابجا کنید)
-            channel_id = "@testDelgraphyha" 
-            chan_name = "Test Channel"
+            channel_id = context.user_data.get('selected_channel', '@Delgraphyha')
+            chan_name = "کانال دلگرافیها" if channel_id == "@Delgraphyha" else "آهنگ زیبا موزیک"
              
             if not input_path or not os.path.exists(input_path):
                 await update.message.reply_text("❌ اطلاعات فایل منقضی شده است. دوباره موزیک را بفرستید.")
@@ -98,7 +96,7 @@ async def handle_text_or_hours(update: Update, context: ContextTypes.DEFAULT_TYP
                 args=[channel_id, chan_name, input_path, voice_path, title, context.user_data]
             )
             context.user_data['waiting_for_custom_hours'] = False
-            await update.message.reply_text(f"⏰ پست برای **{hours} ساعت دیگر** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
+            await update.message.reply_text(f"⏰ پست برای **{hours} ساعت دیگر** در {chan_name} زمان‌بندی شد!")
             return
         except ValueError:
             await update.message.reply_text("❌ لطفاً فقط یک عدد صحیح وارد کنید:")
@@ -142,20 +140,15 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
      
     keyboard = [
         [
-            InlineKeyboardButton("🚀 ارسال آنی", callback_data="send_now"),
-            InlineKeyboardButton("⚡ تست (۱ دقیقه‌ای)", callback_data="sched_1min")
+            InlineKeyboardButton("📢 کانال دلگرافیها (@Delgraphyha)", callback_data="chan_delgraphyha"),
         ],
         [
-            InlineKeyboardButton("⏱ ۶ ساعت دیگر", callback_data="sched_6h"),
-            InlineKeyboardButton("⏳ ۱۲ ساعت دیگر", callback_data="sched_12h")
-        ],
-        [
-            InlineKeyboardButton("✏️ ورود ساعت دلخواه", callback_data="sched_custom")
+            InlineKeyboardButton("🎶 آهنگ زیبا موزیک (@ahangzibamusic)", callback_data="chan_ahangziba")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
      
-    await update.message.reply_text("✅ پردازش انجام شد. زمان انتشار پست را انتخاب کن:", reply_markup=reply_markup)
+    await update.message.reply_text("✅ پردازش فایل انجام شد. لطفاً کانال مقصد را انتخاب کنید:", reply_markup=reply_markup)
 
 async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_path, title, user_data):
     custom_thumb = user_data.get('custom_thumb_path')
@@ -231,9 +224,33 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer()
      
     data = query.data
-    # کانال مقصد برای تست یا ارسال
-    channel_id = "@testDelgraphyha"
-    chan_name = "Test Channel"
+     
+    if data in ["chan_delgraphyha", "chan_ahangziba"]:
+        if data == "chan_delgraphyha":
+            context.user_data['selected_channel'] = "@Delgraphyha"
+            chan_title = "کانال دلگرافیها"
+        else:
+            context.user_data['selected_channel'] = "@ahangzibamusic"
+            chan_title = "آهنگ زیبا موزیک"
+
+        keyboard = [
+            [
+                InlineKeyboardButton("🚀 ارسال آنی", callback_data="send_now"),
+                InlineKeyboardButton("⚡ تست (۱ دقیقه‌ای)", callback_data="sched_1min")
+            ],
+            [
+                InlineKeyboardButton("⏱ ۶ ساعت دیگر", callback_data="sched_6h"),
+                InlineKeyboardButton("⏳ ۱۲ ساعت دیگر", callback_data="sched_12h")
+            ],
+            [
+                InlineKeyboardButton("✏️ ورود ساعت دلخواه", callback_data="sched_custom")
+            ]
+        ]
+        await query.edit_message_text(f"✅ کانال **{chan_title}** انتخاب شد.\nحالا زمان انتشار پست را انتخاب کنید:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    channel_id = context.user_data.get('selected_channel', '@Delgraphyha')
+    chan_name = "کانال دلگرافیها" if channel_id == "@Delgraphyha" else "آهنگ زیبا موزیک"
      
     input_path = context.user_data.get('input_path')
     voice_path = context.user_data.get('voice_path')
@@ -246,7 +263,7 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     now = datetime.now(LOCAL_TZ)
 
     if data == "send_now":
-        await query.edit_message_text(f"⏳ در حال ارسال مستقیم پست به کانال {chan_name}...")
+        await query.edit_message_text(f"⏳ در حال ارسال مستقیم پست به {chan_name}...")
         await send_post_to_channel(context.bot, channel_id, chan_name, input_path, voice_path, title, context.user_data)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"✅ پست با موفقیت به کانال ارسال شد!")
         return
@@ -275,7 +292,7 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         args=[channel_id, chan_name, input_path, voice_path, title, context.user_data]
     )
      
-    await query.edit_message_text(f"⏰ پست با موفقیت برای **{time_text}** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
+    await query.edit_message_text(f"⏰ پست برای **{time_text}** در {chan_name} (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
 
 def main():
     global global_app, main_loop
@@ -300,7 +317,7 @@ def main():
     global_app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     global_app.add_handler(MessageHandler(filters.AUDIO | filters.Document.ALL, handle_audio))
     global_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_or_hours))
-    global_app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(send_now|sched_)"))
+    global_app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(chan_|send_now|sched_)"))
     global_app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
 
     port = int(os.environ.get("PORT", 10000))
