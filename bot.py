@@ -1,7 +1,5 @@
 import os
 import subprocess
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import threading
 from datetime import datetime, timedelta
 import pytz
 import asyncio
@@ -15,7 +13,7 @@ scheduler = BackgroundScheduler(timezone=LOCAL_TZ)
 scheduler.start()
 
 global_app = None
-main_loop = None # ذخیره لوپ اصلی برنامه
+main_loop = None
 
 async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -23,7 +21,7 @@ async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("ثبت شد! ❤️")
     except Exception:
         pass
-    
+     
     data = query.data
     if data.startswith("like_"):
         try:
@@ -47,7 +45,7 @@ async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                     else:
                         new_row.append(button)
                 new_keyboard.append(new_row)
-                
+                 
             await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(new_keyboard))
         except Exception as e:
             print(f"Like error: {e}")
@@ -56,7 +54,7 @@ def process_audio_clip(input_path, wav_path, ogg_path):
     clip_duration = "25"
     cut_cmd = ["ffmpeg", "-y", "-ss", "30", "-i", input_path, "-t", clip_duration, "-c:a", "libmp3lame", wav_path]
     res = subprocess.run(cut_cmd, capture_output=True)
-    
+     
     if res.returncode != 0 or not os.path.exists(wav_path) or os.path.getsize(wav_path) == 0:
         cut_cmd = ["ffmpeg", "-y", "-ss", "0", "-i", input_path, "-t", clip_duration, "-c:a", "libmp3lame", wav_path]
         subprocess.run(cut_cmd, capture_output=True)
@@ -70,11 +68,11 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo_file = await update.message.photo[-1].get_file()
     custom_thumb_path = os.path.join("downloads", f"custom_thumb_{user_id}.jpg")
     await photo_file.download_to_drive(custom_thumb_path)
-    
+     
     context.user_data['custom_thumb_path'] = custom_thumb_path
     await update.message.reply_text("✅ عکس کاور اختصاصی ذخیره شد! حالا موزیک را بفرستید.")
 
-async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_text_or_hours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get('waiting_for_custom_hours'):
         text = update.message.text
         try:
@@ -82,9 +80,11 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
             input_path = context.user_data.get('input_path')
             voice_path = context.user_data.get('voice_path')
             title = context.user_data.get('title', 'Music')
-            channel_id = "@Delgraphyha"
-            chan_name = "@ahangzibamusic"
             
+            # کانال مقصد (می‌توانید بین تست و اصلی جابجا کنید)
+            channel_id = "@testDelgraphyha" 
+            chan_name = "Test Channel"
+             
             if not input_path or not os.path.exists(input_path):
                 await update.message.reply_text("❌ اطلاعات فایل منقضی شده است. دوباره موزیک را بفرستید.")
                 context.user_data['waiting_for_custom_hours'] = False
@@ -103,15 +103,18 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except ValueError:
             await update.message.reply_text("❌ لطفاً فقط یک عدد صحیح وارد کنید:")
             return
+    else:
+        await update.message.reply_text("🎵 لطفاً فایل صوتی یا موزیک مورد نظر خود را ارسال کنید.")
 
+async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ در حال پردازش هوشمند موزیک...")
-    
+     
     os.makedirs("downloads", exist_ok=True)
     user_id = update.effective_user.id
     input_path = os.path.join("downloads", f"song_{user_id}.mp3")
     wav_path = os.path.join("downloads", f"temp_{user_id}.wav")
     voice_path = os.path.join("downloads", f"voice_{user_id}.ogg")
-    
+     
     if update.message.audio:
         audio_msg = update.message.audio
         audio_file = await audio_msg.get_file()
@@ -131,12 +134,12 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     process_audio_clip(input_path, wav_path, voice_path)
-    
+     
     context.user_data['input_path'] = input_path
     context.user_data['voice_path'] = voice_path
     context.user_data['title'] = title
     context.user_data['user_id'] = user_id
-    
+     
     keyboard = [
         [
             InlineKeyboardButton("🚀 ارسال آنی", callback_data="send_now"),
@@ -151,7 +154,7 @@ async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+     
     await update.message.reply_text("✅ پردازش انجام شد. زمان انتشار پست را انتخاب کن:", reply_markup=reply_markup)
 
 async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_path, title, user_data):
@@ -186,7 +189,7 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
                 caption=(
                     "🎵 **نسخه کامل موزیک**\n\n"
                     "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
-                    "🎬 تیک‌تاک: [TikTok Profile](https://tiktok.com/@wanderovlog)"
+                    "🎬 تیک‌تاک: [TikTok Profile](https://tiktok.com/@wanderovlog)\n"
                     "📷 اینستاگرام: [Instagram Profile](https://instagram.com/delgraphyha)"
                 ),
                 parse_mode="Markdown",
@@ -199,10 +202,10 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
                 voice=voice,
                 caption=(
                     "✨ بخش جذاب آهنگ\n\n"
-                    "🎵 **گلچین ۲۵ ثانیه طلایی **\n\n"
+                    "🎵 **گلچین ۲۵ ثانیه طلایی**\n\n"
                     "✨ لذت ببرید و نظرات خود را با ما در میان بگذارید.\n\n"
                     "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
-                    "🎬 ما را در تیک‌تاک دنبال کنید: [TikTok Profile](https://tiktok.com/@wanderovlog)"
+                    "🎬 ما را در تیک‌تاک دنبال کنید: [TikTok Profile](https://tiktok.com/@wanderovlog)\n"
                     "📷 اینستاگرام: [Instagram Profile](https://instagram.com/delgraphyha)"
                 ),
                 parse_mode="Markdown",
@@ -226,14 +229,15 @@ def scheduled_job_wrapper(channel_id, chan_name, input_path, voice_path, title, 
 async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
+     
     data = query.data
+    # کانال مقصد برای تست یا ارسال
     channel_id = "@testDelgraphyha"
     chan_name = "Test Channel"
-    
+     
     input_path = context.user_data.get('input_path')
     voice_path = context.user_data.get('voice_path')
-    
+     
     if not input_path or not os.path.exists(input_path):
         await query.edit_message_text("❌ اطلاعات فایل منقضی شده است. لطفاً دوباره موزیک را ارسال کنید.")
         return
@@ -270,22 +274,20 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         run_date=run_time,
         args=[channel_id, chan_name, input_path, voice_path, title, context.user_data]
     )
-    
+     
     await query.edit_message_text(f"⏰ پست با موفقیت برای **{time_text}** (ساعت {run_time.strftime('%H:%M')}) زمان‌بندی شد!")
 
 def main():
     global global_app, main_loop
     TOKEN = os.getenv("TELEGRAM_TOKEN", "")
     RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL", "")
-    
+     
     if not TOKEN:
         print("❌ خطا: توکن ربات پیدا نشد!")
         return
-    
+     
     global_app = ApplicationBuilder().token(TOKEN).build()
-    
-    # ثبت لوپ اصلی برنامه‌
-    # ایجاد یا گرفتن امن لوپ اصلی
+     
     try:
         main_loop = asyncio.get_event_loop()
         if main_loop.is_closed():
@@ -294,9 +296,10 @@ def main():
     except RuntimeError:
         main_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(main_loop)
-    
+     
     global_app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    global_app.add_handler(MessageHandler(filters.AUDIO | filters.Document.ALL | (filters.TEXT & ~filters.COMMAND), handle_audio))
+    global_app.add_handler(MessageHandler(filters.AUDIO | filters.Document.ALL, handle_audio))
+    global_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_or_hours))
     global_app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(send_now|sched_)"))
     global_app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
 
@@ -306,7 +309,7 @@ def main():
         base_url = RENDER_EXTERNAL_URL.rstrip('/')
         webhook_url = f"{base_url}/{TOKEN}"
         print(f"🌐 در حال راه‌اندازی Webhook روی آدرس: {webhook_url}")
-        
+         
         global_app.run_webhook(
             listen="0.0.0.0",
             port=port,
