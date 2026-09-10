@@ -3,6 +3,7 @@ import subprocess
 from datetime import datetime, timedelta
 import pytz
 import asyncio
+from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -14,6 +15,25 @@ scheduler.start()
 
 global_app = None
 main_loop = None
+
+# راه‌اندازی سرور Flask برای پاسخ به UptimeRobot و وب‌هوق تلگرام
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is running and alive!", 200
+
+@app.route(f"/{os.getenv('TELEGRAM_TOKEN', '')}", methods=["POST"])
+def webhook():
+    global global_app
+    if global_app:
+        try:
+            json_data = request.get_json(force=True)
+            update = Update.de_json(json_data, global_app.bot)
+            asyncio.run_coroutine_threadsafe(global_app.process_update(update), main_loop)
+        except Exception as e:
+            print(f"Webhook error: {e}")
+    return "OK", 200
 
 async def button_like_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -320,22 +340,20 @@ def main():
     global_app.add_handler(CallbackQueryHandler(button_mode_handler, pattern="^(chan_|send_now|sched_)"))
     global_app.add_handler(CallbackQueryHandler(button_like_handler, pattern="^like_"))
 
-    port = int(os.environ.get("PORT", 10000))
-
     if RENDER_EXTERNAL_URL:
         base_url = RENDER_EXTERNAL_URL.rstrip('/')
         webhook_url = f"{base_url}/{TOKEN}"
-        print(f"🌐 در حال راه‌اندازی Webhook روی آدرس: {webhook_url}")
-         
-        global_app.run_webhook(
-            listen="0.0.0.0",
-            port=port,
-            url_path=TOKEN,
-            webhook_url=webhook_url
-        )
-    else:
-        print("💻 در حال راه‌اندازی با روش Polling...")
-        global_app.run_polling(drop_pending_updates=True)
+        print(f"🌐 در حال تنظیم وب‌هوق روی: {webhook_url}")
+        
+        # مقداردهی وب‌هوق به تلگرام
+        async def set_hook():
+            await global_app.bot.set_webhook(webhook_url)
+        
+        asyncio.run(set_hook())
+
+    port = int(os.environ.get("PORT", 10000))
+    print(f"🚀 راه‌اندازی سرور روی پورت {port}...")
+    app.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     main()
