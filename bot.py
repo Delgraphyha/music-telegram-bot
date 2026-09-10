@@ -179,7 +179,9 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
     keyboard = [
         [
             InlineKeyboardButton("👍 لایک", callback_data="like_btn"),
-            InlineKeyboardButton("❤️ قلب", callback_data="like_heart"),
+            InlineKeyboardButton("❤️ قلب", callback_data="like_heart")
+        ],
+        [
             InlineKeyboardButton("👏 دست زدن", callback_data="like_clap"),
             InlineKeyboardButton("🔥 آتش", callback_data="like_fire")
         ]
