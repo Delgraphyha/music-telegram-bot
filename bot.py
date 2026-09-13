@@ -206,7 +206,7 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
                 caption=(
                     "🎵 **نسخه کامل موزیک**\n\n"
                     "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
-                    "🎬 تیک‌تاک: [TikTok Profile](https://tiktok.com/@wanderovlog)\n"
+                    "🎬 تیک‌تاک: [TikTok Profile](https://tiktok.com/@delgraphyha)\n"
                     "📷 اینستاگرام: [Instagram Profile](https://instagram.com/delgraphyha)"
                 ),
                 parse_mode="Markdown",
@@ -222,7 +222,7 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
                     "🎵 **گلچین ۲۵ ثانیه طلایی**\n\n"
                     "✨ لذت ببرید و نظرات خود را با ما در میان بگذارید.\n\n"
                     "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
-                    "🎬 ما را در تیک‌تاک دنبال کنید: [TikTok Profile](https://tiktok.com/@wanderovlog)\n"
+                    "🎬 ما را در تیک‌تاک دنبال کنید: [TikTok Profile](https://tiktok.com/@delgraphyha)\n"
                     "📷 اینستاگرام: [Instagram Profile](https://instagram.com/delgraphyha)"
                 ),
                 parse_mode="Markdown",
