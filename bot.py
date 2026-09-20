@@ -478,6 +478,10 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 InlineKeyboardButton("⚡ تست ۱ دقیقه‌ای", callback_data="sched_1min"),
             ],
             [
+                InlineKeyboardButton("⏱ ۱۰ دقیقه دیگر", callback_data="sched_10min"),
+                InlineKeyboardButton("⏱ ۳۰ دقیقه دیگر", callback_data="sched_30min"),
+            ],
+            [
                 InlineKeyboardButton("⏱ ۶ ساعت دیگر", callback_data="sched_6h"),
                 InlineKeyboardButton("⏳ ۱۲ ساعت دیگر", callback_data="sched_12h"),
             ],
@@ -533,6 +537,12 @@ async def button_mode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     if data == "sched_1min":
         run_time = now + timedelta(minutes=1)
         time_text = "۱ دقیقه دیگر"
+    elif data == "sched_10min":
+        run_time = now + timedelta(minutes=10)
+        time_text = "۱۰ دقیقه دیگر"
+    elif data == "sched_30min":
+        run_time = now + timedelta(minutes=30)
+        time_text = "۳۰ دقیقه دیگر"
     elif data == "sched_6h":
         run_time = now + timedelta(hours=6)
         time_text = "۶ ساعت دیگر"
