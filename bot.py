@@ -399,7 +399,9 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
                     "🎵 **نسخه کامل موزیک**\n\n"
                     "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
                     "🎬 تیک‌تاک: [TikTok Profile](https://tiktok.com/@delgraphyha)\n"
-                    "📷 اینستاگرام: [Instagram Profile](https://instagram.com/delgraphyha)"
+                    "📷 اینستاگرام: [Instagram Profile](https://instagram.com/delgraphyha)\n"
+                    "🎼 موسیقی بی‌کلام: [Ahang Ziba](https://t.me/ahangzibamusic)\n\n"
+                    "💬 نظر شما درباره این آهنگ چیه؟ نظرتون رو در کامنت‌ها بنویسید."
                 ),
                 parse_mode="Markdown",
                 reply_markup=reply_markup,
@@ -411,7 +413,6 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
                 voice=voice,
                 caption=(
                     "✨ بخش جذاب آهنگ\n\n"
-                    "🎵 **گلچین ۲۵ ثانیه طلایی**\n\n"
                     "✨ لذت ببرید و نظرات خود را با ما در میان بگذارید.\n\n"
                     "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
                     "🎬 ما را در تیک‌تاک دنبال کنید: [TikTok Profile](https://tiktok.com/@delgraphyha)\n"
