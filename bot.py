@@ -41,7 +41,7 @@ def home():
     return "Bot is running and alive!", 200
 
 
-@app.route(f"/{os.getenv('TELEGRAM_TOKEN', '')}", methods=["POST"])
+@app.route("/telegram-webhook", methods=["POST"])
 def webhook():
     global global_app, background_loop
     if global_app and background_loop:
@@ -400,8 +400,7 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
                     "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
                     "🎬 تیک‌تاک: [TikTok Profile](https://tiktok.com/@delgraphyha)\n"
                     "📷 اینستاگرام: [Instagram Profile](https://instagram.com/delgraphyha)\n"
-                    "🎼 موسیقی بی‌کلام: [Ahang Ziba](https://t.me/ahangzibamusic)\n\n"
-                    "💬 نظر شما درباره این آهنگ چیه؟ نظرتون رو در کامنت‌ها بنویسید."
+                    "🎼 موسیقی بی‌کلام: [Ahang Ziba](https://t.me/ahangzibamusic)"
                 ),
                 parse_mode="Markdown",
                 reply_markup=reply_markup,
@@ -413,6 +412,7 @@ async def send_post_to_channel(bot, channel_id, chan_name, input_path, voice_pat
                 voice=voice,
                 caption=(
                     "✨ بخش جذاب آهنگ\n\n"
+                    "🎵 **گلچین ۲۵ ثانیه طلایی**\n\n"
                     "✨ لذت ببرید و نظرات خود را با ما در میان بگذارید.\n\n"
                     "🌐 سابسکرایب در یوتوب: [YouTube Channel](https://youtube.com/@delgraphyha?sub_confirmation=1)\n"
                     "🎬 ما را در تیک‌تاک دنبال کنید: [TikTok Profile](https://tiktok.com/@delgraphyha)\n"
@@ -594,7 +594,7 @@ def main():
         await global_app.start()
         if RENDER_EXTERNAL_URL:
             base_url = RENDER_EXTERNAL_URL.rstrip("/")
-            webhook_url = f"{base_url}/{TOKEN}"
+            webhook_url = f"{base_url}/telegram-webhook"
             print(f"🌐 در حال تنظیم وب‌هوق روی: {webhook_url}")
             await global_app.bot.set_webhook(webhook_url)
 
