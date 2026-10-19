@@ -98,6 +98,13 @@ def privacy():
     """, 200, {"Content-Type": "text/html; charset=utf-8"}
 
 
+
+
+@app.route("/tiktok5DvEZcp4OV0sXiL0fS0fH36XI5V5ogyx.txt")
+def tiktok_site_verification():
+    return "tiktok-developers-site-verification=5DvEZcp4OV0sXiL0fS0fH36XI5V5ogyx", 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
 @app.route("/telegram-webhook", methods=["POST"])
 def webhook():
     global global_app, background_loop
