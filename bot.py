@@ -8,7 +8,7 @@ app = Flask(__name__)
 def home():
     return "Delgraphyha Shorts Factory web pages", 200
 
-app.route("/terms")
+@app.route("/terms")
 def terms():
     return """
     <!doctype html>
@@ -35,7 +35,7 @@ def terms():
     </html>
     """, 200, {"Content-Type": "text/html; charset=utf-8"}
 
-app.route("/privacy")
+@app.route("/privacy")
 def privacy():
     return """
     <!doctype html>
@@ -63,7 +63,7 @@ def privacy():
     </html>
     """, 200, {"Content-Type": "text/html; charset=utf-8"}
 
-app.route("/tiktok5DvEZcp4OV0sXiL0fS0fH36XI5V5ogyx.txt")
+@app.route("/tiktok5DvEZcp4OV0sXiL0fS0fH36XI5V5ogyx.txt")
 def tiktok_site_verification():
     return "tiktok-developers-site-verification=5DvEZcp4OV0sXiL0fS0fH36XI5V5ogyx", 200, {"Content-Type": "text/plain; charset=utf-8"}
 
