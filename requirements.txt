@@ -1,5 +1,2 @@
-flask
-python-telegram-bot[webhooks]
-apscheduler
-pytz
-ffmpeg-python
+Flask>=3.0,<4
+gunicorn>=22,<24
